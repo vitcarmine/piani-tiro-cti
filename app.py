@@ -4,6 +4,8 @@ import pandas as pd
 from datetime import date
 from dati_cti import MACCHINE_INIZIALI, ATTREZZATURE_INIZIALI
 from generatore_word import render_pulsante_e_word
+from modulo_macchine_team import render_macchine_e_team
+from sezioni_app import mostra_db_attrezzature, mostra_db_macchine
 
 st.set_page_config(page_title="Manuale Sollevamenti - C.T.I. Srl", page_icon="🏗️", layout="wide")
 
@@ -55,7 +57,7 @@ if pagina == "📝 Genera Manuale / Piano di Tiro":
         company_scelte = cc1.multiselect("Seleziona una o più Company", tutte_comp, default=tutte_comp)
         df_f = df_attrezzature[df_attrezzature["company"].isin(company_scelte)].copy() if len(company_scelte) > 0 else df_attrezzature.copy()
         df_f["etichetta"] = "[" + df_f["company"] + "] " + df_f["nome"]
-        attr_scelte = cc2.multiselect("Seleziona le Attrezzature (genera 1 scheda per ciascuna)", df_f["etichetta"].tolist())
+        attr_scelte = cc2.multiselect("Seleziona le Attrezzature (1 scheda per ciascuna)", df_f["etichetta"].tolist())
 
         lista_attr_raw = []
         if len(attr_scelte) > 0:
@@ -66,16 +68,11 @@ if pagina == "📝 Genera Manuale / Piano di Tiro":
                 p_singolo = ca1.number_input("Peso (kg)", min_value=1.0, value=float(riga["peso_kg"]), step=10.0, key=f"pa_{i}")
                 corr_singolo = ca2.selectbox("Accessori a corredo?", ["Sì", "No"], index=0 if riga["accessori_corredo"] == "Sì" else 1, key=f"ca_{i}")
                 foto_singola = ca3.file_uploader("Foto/Disegno dettaglio", type=["png", "jpg", "jpeg"], key=f"fa_{i}")
-                desc_singola = st.text_area("Descrizione tecnica (dimensioni, forma, golfari)", value=riga["descrizione"], height=70, key=f"da_{i}")
-                acc_singolo = st.text_area("Evidenza numerica accessori e WLL", value=riga["accessori_dettaglio"], height=70, key=f"aa_{i}")
-                lista_attr_raw.append({
-                    "company": riga["company"], "nome": riga["nome"], "peso_kg": int(p_singolo),
-                    "descrizione": desc_singola, "accessori_corredo": corr_singolo,
-                    "accessori_dettaglio": acc_singolo, "foto_file": foto_singola
-                })
+                desc_singola = st.text_area("Descrizione tecnica", value=riga["descrizione"], height=70, key=f"da_{i}")
+                acc_singolo = st.text_area("Evidenza numerica accessori", value=riga["accessori_dettaglio"], height=70, key=f"aa_{i}")
+                lista_attr_raw.append({"company": riga["company"], "nome": riga["nome"], "peso_kg": int(p_singolo), "descrizione": desc_singola, "accessori_corredo": corr_singolo, "accessori_dettaglio": acc_singolo, "foto_file": foto_singola})
                 st.divider()
         else:
-            st.info("Seleziona una o più attrezzature dal menu a tendina sopra, oppure compila un elemento manuale:")
             m_comp = st.text_input("Company", value="SMAPE")
             m_nome = st.text_input("Nome Elemento", value="")
             m_peso = st.number_input("Peso (kg)", min_value=1.0, value=500.0, step=10.0)
@@ -83,11 +80,7 @@ if pagina == "📝 Genera Manuale / Piano di Tiro":
             m_desc = st.text_area("Descrizione tecnica", value="")
             m_acc = st.text_area("Accessori associati", value="")
             m_foto = st.file_uploader("Foto/Disegno elemento", type=["png", "jpg", "jpeg"])
-            lista_attr_raw.append({
-                "company": m_comp, "nome": m_nome, "peso_kg": int(m_peso),
-                "descrizione": m_desc, "accessori_corredo": m_corr,
-                "accessori_dettaglio": m_acc, "foto_file": m_foto
-            })
+            lista_attr_raw.append({"company": m_comp, "nome": m_nome, "peso_kg": int(m_peso), "descrizione": m_desc, "accessori_corredo": m_corr, "accessori_dettaglio": m_acc, "foto_file": m_foto})
 
         modalita_peso = st.radio("Riferimento peso per verifica mezzi:", ["Peso massimo singolo tiro (più gravoso)", "Somma pesi (sollevamento assieme)"], horizontal=True)
         pesi_list = [x["peso_kg"] for x in lista_attr_raw]
@@ -99,41 +92,18 @@ if pagina == "📝 Genera Manuale / Piano di Tiro":
         carico_max_p = round(((peso_el_kg + peso_bozzello_kg + peso_acc_kg) * (1 + contingenza_tot_perc / 100.0)) / 1000.0, 2)
         st.metric("Carico Totale di Progetto p*", f"{carico_max_p:.2f} t")
 
-    with st.expander("3. Schede Macchine di Sollevamento (1 Scheda per Macchina) e Stabilizzatori", expanded=True):
-        macchine_scelte = st.multiselect("Seleziona le Macchine di riferimento", df_macchine["modello"].tolist(), default=df_macchine["modello"].head(1).tolist())
-        lista_macchine_raw = []
-        riepilogo_macchine_testo = []
+    lista_macchine_raw, testo_comp, testo_stab, n_pic, n_imb, n_seg, n_op, img_rig, img_plan = render_macchine_e_team(df_macchine, carico_max_p)
+    dati_word = {
+        "protocollo": protocollo, "titolo_documento": titolo_doc, "revisione": revisione, "data_emissione": data_emissione,
+        "sito": sito, "oggetto_attivita": oggetto_attivita, "preparato_da": preparato_da, "approvato_da": approvato_da,
+        "data_sopralluogo": data_sopralluogo, "quota_partenza": quota_partenza, "quota_arrivo": quota_arrivo,
+        "codice_lta": codice_lta, "criticita": criticita, "carico_max_p": f"{carico_max_p:.2f}",
+        "testo_compatibilita": testo_comp, "testo_stabilizzatori": testo_stab,
+        "num_pic": n_pic, "num_imbracatori": n_imb, "num_segnalatori": n_seg, "num_operatori": n_op
+    }
+    render_pulsante_e_word(dati_word, lista_macchine_raw, lista_attr_raw, img_rig, img_plan)
 
-        for idx, mod_nome in enumerate(macchine_scelte):
-            dm = df_macchine[df_macchine["modello"] == mod_nome].squeeze()
-            st.markdown(f"**Scheda Macchina 2.{idx + 1}: {mod_nome}** (`{dm['targa']}` | INAIL `{dm['matricola_inail']}`)")
-            cm1, cm2, cm3 = st.columns(3)
-            sb = cm1.number_input("Sbraccio / Raggio (m)", min_value=0.5, value=8.0, step=0.5, key=f"sb_{idx}")
-            br = cm2.number_input("Lunghezza braccio (m)", min_value=1.0, value=24.2, step=0.5, key=f"br_{idx}")
-            pt = cm3.number_input("Portata effettiva da tabella (t)", min_value=0.1, value=20.9, step=0.1, key=f"pt_{idx}")
-            cu = round((carico_max_p / pt) * 100.0, 2)
-            if cu <= 80:
-                st.success(f"✅ Coefficiente di utilizzo M{idx + 1}: **{cu:.2f}%** (Conforme ≤ 80%)")
-            else:
-                st.error(f"⚠️ Coefficiente di utilizzo M{idx + 1}: **{cu:.2f}%** (Supera l'80%)")
-
-            cd1, cd2 = st.columns(2)
-            diag_std = cd1.file_uploader("Diagramma di carico standard", type=["png", "jpg", "jpeg"], key=f"ds_{idx}")
-            diag_cerc = cd2.file_uploader("Diagramma sbraccio/raggio cerchiato", type=["png", "jpg", "jpeg"], key=f"dc_{idx}")
-
-            lista_macchine_raw.append({
-                "modello": dm["modello"], "matricola_inail": dm["matricola_inail"], "targa": dm["targa"],
-                "portata_max": dm["portata_max"], "anno": dm["anno"], "verifica_periodica": dm["verifica_periodica"],
-                "note": dm["note_specifiche"], "sbraccio": f"{sb:.1f}", "braccio": f"{br:.1f}",
-                "portata_eff": f"{pt:.2f}", "coeff_utilizzo": f"{cu:.2f}",
-                "diag_std": diag_std, "diag_cerc": diag_cerc
-            })
-            riepilogo_macchine_testo.append(f"- {mod_nome}: sbraccio {sb:.1f} m, braccio {br:.1f} m, portata {pt:.2f} t, carico p* {carico_max_p:.2f} t (Cu = {cu:.2f}%).")
-            st.divider()
-
-        cs1, cs2, cs3 = st.columns(3)
-        scarico_stab_base_t = cs1.number_input("Carico singolo stabilizzatore (t)", min_value=0.0, value=12.0, step=0.5)
-        lato_piastra_m = cs2.number_input("Lato piastra (m)", min_value=0.2, value=0.80, step=0.1)
-        portanza_terreno_kgcm2 = cs3.number_input("Portanza terreno (kg/cm²)", min_value=0.5, value=4.00, step=0.25)
-        scarico_stab_sicurezza_t = scarico_stab_base_t * 2.0
-        pressione_max_kgcm2 = round((scarico_stab_sicurezza_t * 1000.0) / ((lato_piastra_m * 100.0) ** 2), 2)
+elif pagina == "📦 Database Attrezzature (Company)":
+    mostra_db_attrezzature()
+elif pagina == "🚜 Database Macchine":
+    mostra_db_macchine()
