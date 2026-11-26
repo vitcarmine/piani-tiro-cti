@@ -96,7 +96,10 @@ if pagina == "📝 Genera Piano di Tiro":
             br = cm2.number_input(f"Lunghezza braccio M{idx + 1} (m)", min_value=1.0, value=38.1, step=0.5, key=f"br_{idx}")
             pt = cm3.number_input(f"Portata effettiva M{idx + 1} (t)", min_value=0.1, value=4.70, step=0.1, key=f"pt_{idx}")
             cu = round((carico_max_p / pt) * 100.0, 2)
-            st.success(f"✅ Utilizzo M{idx + 1}: **{cu:.2f}%**") if cu < 80 else st.error(f"⚠️ Utilizzo M{idx + 1}: **{cu:.2f}%** (>80%)")
+            if cu < 80:
+    st.success(f"✅ Utilizzo M{idx + 1}: **{cu:.2f}%**")
+else:
+    st.error(f"⚠️ Utilizzo M{idx + 1}: **{cu:.2f}%** (>80%)")
 
             if idx == 0:
                 sbraccio_1, braccio_1, portata_1, coeff_1 = sb, br, pt, cu
@@ -116,7 +119,10 @@ if pagina == "📝 Genera Piano di Tiro":
         portanza_terreno_kgcm2 = cs3.number_input("Portanza terreno (kg/cm²)", min_value=0.5, value=4.00, step=0.25)
         scarico_stab_sicurezza_t = scarico_stab_base_t * 2.0
         pressione_max_kgcm2 = round((scarico_stab_sicurezza_t * 1000.0) / ((lato_piastra_m * 100.0) ** 2), 2)
-        st.success(f"✅ Pressione (+100%): **{pressione_max_kgcm2:.2f} kg/cm²** ≤ {portanza_terreno_kgcm2:.2f} kg/cm²") if pressione_max_kgcm2 <= portanza_terreno_kgcm2 else st.error(f"⚠️ Pressione ({pressione_max_kgcm2:.2f} kg/cm²) > Portanza terreno!")
+        if pressione_max_kgcm2 <= portanza_terreno_kgcm2:
+    st.success(f"✅ Pressione (+100%): **{pressione_max_kgcm2:.2f} kg/cm²** ≤ {portanza_terreno_kgcm2:.2f} kg/cm²")
+else:
+    st.error(f"⚠️ Pressione ({pressione_max_kgcm2:.2f} kg/cm²) > Portanza terreno!")
 
     with st.expander("4. Accessori Associati e Lifting Team", expanded=True):
         accessori_corredo = st.selectbox("Accessori a corredo?", ["Sì", "No"], index=0 if def_corr == "Sì" else 1)
