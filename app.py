@@ -8,13 +8,13 @@ from generatore_word import crea_documento_word
 st.set_page_config(page_title="Piani di Tiro - C.T.I. Srl", page_icon="🏗️", layout="wide")
 
 def init_db():
-    conn = sqlite3.connect("database_lifting_cti_v4.db")
+    conn = sqlite3.connect("database_lifting_cti_v5.db")
     c = conn.cursor()
     c.execute("CREATE TABLE IF NOT EXISTS macchine (id INTEGER PRIMARY KEY AUTOINCREMENT, modello TEXT, targa TEXT, matricola_inail TEXT, portata_max TEXT, anno TEXT, categoria TEXT, verifica_periodica TEXT, note_specifiche TEXT)")
     c.execute("CREATE TABLE IF NOT EXISTS attrezzature (id INTEGER PRIMARY KEY AUTOINCREMENT, company TEXT, nome TEXT, peso_kg REAL, descrizione TEXT, accessori_corredo TEXT, accessori_dettaglio TEXT)")
-    if c.execute("SELECT COUNT(*) FROM macchine").fetchone() == 0:
+    if c.execute("SELECT COUNT(*) FROM macchine").fetchone()[0] == 0:
         c.executemany("INSERT INTO macchine (modello, targa, matricola_inail, portata_max, anno, categoria, verifica_periodica, note_specifiche) VALUES (?, ?, ?, ?, ?, ?, ?, ?)", MACCHINE_INIZIALI)
-    if c.execute("SELECT COUNT(*) FROM attrezzature").fetchone() == 0:
+    if c.execute("SELECT COUNT(*) FROM attrezzature").fetchone()[0] == 0:
         c.executemany("INSERT INTO attrezzature (company, nome, peso_kg, descrizione, accessori_corredo, accessori_dettaglio) VALUES (?, ?, ?, ?, ?, ?)", ATTREZZATURE_INIZIALI)
     conn.commit()
     conn.close()
