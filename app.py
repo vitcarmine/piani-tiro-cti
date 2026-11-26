@@ -97,9 +97,9 @@ if pagina == "📝 Genera Piano di Tiro":
             pt = cm3.number_input(f"Portata effettiva M{idx + 1} (t)", min_value=0.1, value=4.70, step=0.1, key=f"pt_{idx}")
             cu = round((carico_max_p / pt) * 100.0, 2)
             if cu < 80:
-    st.success(f"✅ Utilizzo M{idx + 1}: **{cu:.2f}%**")
-else:
-    st.error(f"⚠️ Utilizzo M{idx + 1}: **{cu:.2f}%** (>80%)")
+                st.success(f"✅ Utilizzo M{idx + 1}: **{cu:.2f}%**")
+            else:
+                st.error(f"⚠️ Utilizzo M{idx + 1}: **{cu:.2f}%** (>80%)")
 
             if idx == 0:
                 sbraccio_1, braccio_1, portata_1, coeff_1 = sb, br, pt, cu
