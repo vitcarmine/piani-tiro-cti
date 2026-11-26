@@ -48,36 +48,68 @@ if pagina == "📝 Genera Piano di Tiro":
         codice_lta = c10.text_input("Codice LTA", value="")
         criticita = st.text_area("Criticità sopralluogo", value="Presenza di parti di impianto in pressione durante i tiri.\nLimitata visibilità del gruista sulle aree di lavoro.")
 
-    with st.expander("2. Elemento da Sollevare (Company) e Calcolo Carico p*", expanded=True):
+    with st.expander("2. Elementi da Sollevare (Selezione Multipla per Company)", expanded=True):
         cc1, cc2 = st.columns(2)
-        company_scelta = cc1.selectbox("Seleziona Company", sorted(df_attrezzature["company"].unique().tolist()))
-        df_f = df_attrezzature[df_attrezzature["company"] == company_scelta]
-        attr_scelta = cc2.selectbox(f"Seleziona Attrezzatura ({company_scelta})", ["➕ Inserimento manuale..."] + df_f["nome"].tolist())
-        if attr_scelta != "➕ Inserimento manuale...":
-            ra = df_f[df_f["nome"] == attr_scelta].squeeze()
-            def_nome, def_peso, def_desc, def_corr, def_acc = ra["nome"], float(ra["peso_kg"]), ra["descrizione"], ra["accessori_corredo"], ra["accessori_dettaglio"]
+        opzioni_comp = ["Tutte le Company"] + sorted(df_attrezzature["company"].unique().tolist())
+        company_scelta = cc1.selectbox("Filtra per Company", opzioni_comp)
+        df_f = df_attrezzature if company_scelta == "Tutte le Company" else df_attrezzature[df_attrezzature["company"] == company_scelta]
+
+        df_f = df_f.copy()
+        df_f["etichetta"] = df_f["company"] + " - " + df_f["nome"]
+        attr_scelte = cc2.multiselect("Seleziona una o più Attrezzature", df_f["etichetta"].tolist())
+
+        modalita_peso = st.radio("Calcolo peso in caso di più attrezzature:", ["Peso massimo singolo tiro (più gravoso)", "Somma pesi (sollevamento assieme)"], horizontal=True)
+
+        if len(attr_scelte) > 0:
+            righe_sel = df_f[df_f["etichetta"].isin(attr_scelte)]
+            def_nome = " + ".join(righe_sel["nome"].tolist())
+            def_peso = float(righe_sel["peso_kg"].max()) if "singolo" in modalita_peso else float(righe_sel["peso_kg"].sum())
+            def_desc = "\n\n".join(righe_sel.apply(lambda r: f"• {r['nome']} ({int(r['peso_kg'])} kg): {r['descrizione']}", axis=1).tolist())
+            def_corr = "Sì" if "Sì" in righe_sel["accessori_corredo"].tolist() else "No"
+            def_acc = "\n".join(righe_sel.apply(lambda r: f"[{r['nome']}]\n{r['accessori_dettaglio']}", axis=1).tolist())
         else:
             def_nome, def_peso, def_desc, def_corr, def_acc = "", 150.0, "", "Sì", ""
-        nome_elemento = st.text_input("Titolo / Tag Elemento", value=def_nome)
-        descrizione_elemento = st.text_area("Descrizione tecnica elemento", value=def_desc)
+
+        nome_elemento = st.text_input("Titolo / Tag Elementi", value=def_nome)
+        descrizione_elemento = st.text_area("Descrizione tecnica elementi", value=def_desc, height=110)
+
         cp1, cp2, cp3, cp4 = st.columns(4)
-        peso_el_kg = cp1.number_input("Peso elemento (kg)", min_value=1.0, value=def_peso, step=10.0)
+        peso_el_kg = cp1.number_input("Peso elemento di progetto (kg)", min_value=1.0, value=def_peso, step=10.0)
         peso_bozzello_kg = cp2.number_input("Peso bozzello (kg)", min_value=0.0, value=400.0, step=10.0)
         peso_acc_kg = cp3.number_input("Peso accessori (kg)", min_value=0.0, value=30.0, step=5.0)
         contingenza_tot_perc = cp4.number_input("Contingenza + Amplif. (%)", min_value=0.0, value=15.5, step=0.5)
         carico_max_p = round(((peso_el_kg + peso_bozzello_kg + peso_acc_kg) * (1 + contingenza_tot_perc / 100.0)) / 1000.0, 2)
         st.metric("Carico Totale di Progetto p*", f"{carico_max_p:.2f} t")
 
-    with st.expander("3. Macchina Principale e Verifica Stabilizzatori", expanded=True):
-        macchina_scelta = st.selectbox("Seleziona Macchina", df_macchine["modello"].tolist())
-        dm = df_macchine[df_macchine["modello"] == macchina_scelta].squeeze()
-        st.info(f"**Targa/Serie:** {dm['targa']} | **INAIL:** {dm['matricola_inail']} | **Portata Max:** {dm['portata_max']} | **Anno:** {dm['anno']}")
-        cm1, cm2, cm3 = st.columns(3)
-        sbraccio_m = cm1.number_input("Raggio / Sbraccio (m)", min_value=0.5, value=22.0, step=0.5)
-        lunghezza_braccio_m = cm2.number_input("Lunghezza braccio (m)", min_value=1.0, value=38.1, step=0.5)
-        portata_conf = cm3.number_input("Portata effettiva da tabella (t)", min_value=0.1, value=4.70, step=0.1)
-        coeff_utilizzo = round((carico_max_p / portata_conf) * 100.0, 2)
-        st.success(f"✅ Coefficiente utilizzo: **{coeff_utilizzo:.2f}%**") if coeff_utilizzo < 80 else st.error(f"⚠️ Coefficiente utilizzo: **{coeff_utilizzo:.2f}%** (>80%)")
+    with st.expander("3. Macchine di Sollevamento (Selezione Multipla) e Stabilizzatori", expanded=True):
+        macchine_scelte = st.multiselect("Seleziona una o più Macchine (Principale + Riserva / Tandem)", df_macchine["modello"].tolist(), default=df_macchine["modello"].head(1).tolist())
+
+        riepilogo_macchine_testo = []
+        targhe_list, inail_list, portate_list, anni_list, verif_list, note_list = [], [], [], [], [], []
+        sbraccio_1, braccio_1, portata_1, coeff_1 = 22.0, 38.1, 4.70, 0.0
+
+        for idx, mod_nome in enumerate(macchine_scelte):
+            dm = df_macchine[df_macchine["modello"] == mod_nome].squeeze()
+            st.markdown(f"**Macchina {idx + 1}: {mod_nome}** (Targa/Serie: `{dm['targa']}` | INAIL: `{dm['matricola_inail']}` | Max: `{dm['portata_max']}`)")
+            cm1, cm2, cm3 = st.columns(3)
+            sb = cm1.number_input(f"Sbraccio M{idx + 1} (m)", min_value=0.5, value=22.0, step=0.5, key=f"sb_{idx}")
+            br = cm2.number_input(f"Lunghezza braccio M{idx + 1} (m)", min_value=1.0, value=38.1, step=0.5, key=f"br_{idx}")
+            pt = cm3.number_input(f"Portata effettiva M{idx + 1} (t)", min_value=0.1, value=4.70, step=0.1, key=f"pt_{idx}")
+            cu = round((carico_max_p / pt) * 100.0, 2)
+            st.success(f"✅ Utilizzo M{idx + 1}: **{cu:.2f}%**") if cu < 80 else st.error(f"⚠️ Utilizzo M{idx + 1}: **{cu:.2f}%** (>80%)")
+
+            if idx == 0:
+                sbraccio_1, braccio_1, portata_1, coeff_1 = sb, br, pt, cu
+            targhe_list.append(str(dm["targa"]))
+            inail_list.append(str(dm["matricola_inail"]))
+            portate_list.append(str(dm["portata_max"]))
+            anni_list.append(str(dm["anno"]))
+            verif_list.append(str(dm["verifica_periodica"]))
+            if dm["note_specifiche"]:
+                note_list.append(str(dm["note_specifiche"]))
+            riepilogo_macchine_testo.append(f"La portata di {mod_nome} allo sbraccio di {sb:.1f} m (braccio {br:.1f} m) è di {pt:.2f} t, compatibile con p* {carico_max_p:.2f} t (coeff. utilizzo {cu:.2f}%).")
+
+        st.divider()
         cs1, cs2, cs3 = st.columns(3)
         scarico_stab_base_t = cs1.number_input("Carico singolo stabilizzatore (t)", min_value=0.0, value=12.0, step=0.5)
         lato_piastra_m = cs2.number_input("Lato piastra (m)", min_value=0.2, value=0.80, step=0.1)
@@ -88,68 +120,18 @@ if pagina == "📝 Genera Piano di Tiro":
 
     with st.expander("4. Accessori Associati e Lifting Team", expanded=True):
         accessori_corredo = st.selectbox("Accessori a corredo?", ["Sì", "No"], index=0 if def_corr == "Sì" else 1)
-        elenco_accessori = st.text_area("Elenco accessori di sollevamento", value=def_acc, height=100)
-        descrizione_imbraco = st.text_area("Modalità operative di imbraco", value=f"Accessori a corredo: {accessori_corredo}.\n{def_acc}")
+        elenco_accessori = st.text_area("Elenco accessori di sollevamento associati", value=def_acc, height=120)
+        descrizione_imbraco = st.text_area("Modalità operative di imbraco", value=f"Accessori a corredo: {accessori_corredo}.\n{def_acc}", height=100)
         ct1, ct2, ct3, ct4 = st.columns(4)
         num_pic = ct1.number_input("N. PIC", min_value=1, value=1)
         num_imbracatori = ct2.number_input("N. Imbracatori", min_value=1, value=1)
         num_segnalatori = ct3.number_input("N. Segnalatori", min_value=1, value=1)
-        num_operatori = ct4.number_input("N. Operatori", min_value=1, value=1)
+        num_operatori = ct4.number_input("N. Operatori", min_value=1, value=len(macchine_scelte) if len(macchine_scelte) > 0 else 1)
 
     with st.expander("5. Caricamento Immagini", expanded=True):
-        img_diag_std = st.file_uploader("Diagramma standard (PNG/JPG)", type=["png", "jpg", "jpeg"])
-        img_diag = st.file_uploader("Diagramma cerchiato (PNG/JPG)", type=["png", "jpg", "jpeg"])
+        img_diag_std = st.file_uploader("Diagramma standard Macchina 1 (PNG/JPG)", type=["png", "jpg", "jpeg"])
+        img_diag = st.file_uploader("Diagramma cerchiato Macchina 1 (PNG/JPG)", type=["png", "jpg", "jpeg"])
+        img_diag_2 = st.file_uploader("Diagramma Macchina 2 (opzionale - PNG/JPG)", type=["png", "jpg", "jpeg"])
         img_elem = st.file_uploader("Foto elemento (PNG/JPG)", type=["png", "jpg", "jpeg"])
         img_rig = st.file_uploader("Schema Rigging 3D (PNG/JPG)", type=["png", "jpg", "jpeg"])
 
-    if st.button("🚀 GENERA PIANO DI TIRO (.DOCX)", type="primary"):
-        try:
-            dati_word = {
-                "protocollo": protocollo, "revisione": revisione, "data_emissione": data_emissione, "sito": sito,
-                "oggetto_attivita": oggetto_attivita, "preparato_da": preparato_da, "approvato_da": approvato_da,
-                "data_sopralluogo": data_sopralluogo, "quota_partenza": quota_partenza, "quota_arrivo": quota_arrivo,
-                "codice_lta": codice_lta, "criticita": criticita, "macchina_modello": dm["modello"],
-                "matricola_inail": dm["matricola_inail"], "targa": dm["targa"], "portata_max": dm["portata_max"],
-                "anno_costruzione": dm["anno"], "verifica_periodica": dm["verifica_periodica"],
-                "note_macchina": dm["note_specifiche"], "sbraccio_m": f"{sbraccio_m:.1f}",
-                "lunghezza_braccio_m": f"{lunghezza_braccio_m:.1f}", "portata_configurazione": f"{portata_conf:.2f}",
-                "carico_max_p": f"{carico_max_p:.2f}", "coeff_utilizzo": f"{coeff_utilizzo:.2f}",
-                "testo_compatibilita": f"La portata della macchina {dm['modello']} allo sbraccio di {sbraccio_m:.1f} m è di {portata_conf:.2f} t, compatibile con p* {carico_max_p:.2f} t (coeff. utilizzo {coeff_utilizzo:.2f}%).",
-                "testo_stabilizzatori": f"Scarico stabilizzatore (+100% sicurezza): {scarico_stab_sicurezza_t:.2f} t | Piastre {lato_piastra_m:.2f}x{lato_piastra_m:.2f} m | Pressione max: {pressione_max_kgcm2:.2f} kg/cm² ≤ {portanza_terreno_kgcm2:.2f} kg/cm² (VERIFICATO).",
-                "nome_elemento": f"ATTREZZATURE {company_scelta} - {nome_elemento}",
-                "descrizione_elemento": descrizione_elemento, "peso_elemento_kg": f"{int(peso_el_kg)}",
-                "descrizione_imbraco": descrizione_imbraco, "elenco_accessori": elenco_accessori,
-                "num_pic": num_pic, "num_imbracatori": num_imbracatori, "num_segnalatori": num_segnalatori, "num_operatori": num_operatori
-            }
-            buffer = crea_documento_word(dati_word, img_diag_std, img_diag, img_elem, img_rig)
-            st.success("✅ Piano di Tiro generato!")
-            st.download_button("📥 Scarica Word Compilato", data=buffer, file_name=f"Piano_di_Tiro_Prot_{protocollo.replace('/', '_')}.docx")
-        except Exception as e:
-            st.error(f"Errore: {e}")
-
-elif pagina == "📦 Database Attrezzature (Company)":
-    st.title("Database Attrezzature per Company")
-    conn = sqlite3.connect("database_lifting_cti_v4.db")
-    df_a = pd.read_sql_query("SELECT * FROM attrezzature", conn)
-    filtro = st.selectbox("Filtra per Company:", ["Tutte"] + sorted(df_a["company"].unique().tolist()))
-    st.dataframe(df_a if filtro == "Tutte" else df_a[df_a["company"] == filtro], use_container_width=True)
-    with st.form("nuova_attr"):
-        c1, c2, c3 = st.columns(3)
-        comp_n = c1.text_input("Company (es. ENI, SMAPE, DAJAN)")
-        nome_n = c2.text_input("Nome Attrezzatura")
-        peso_n = c3.number_input("Peso (kg)", min_value=1.0, value=500.0)
-        desc_n = st.text_area("Descrizione tecnica")
-        corr_n = st.selectbox("Accessori a corredo?", ["Sì", "No"])
-        acc_n = st.text_area("Accessori associati")
-        if st.form_submit_button("Salva Attrezzatura"):
-            if comp_n and nome_n:
-                conn.execute("INSERT INTO attrezzature (company, nome, peso_kg, descrizione, accessori_corredo, accessori_dettaglio) VALUES (?, ?, ?, ?, ?, ?)", (comp_n.upper().strip(), nome_n, peso_n, desc_n, corr_n, acc_n))
-                conn.commit()
-                st.success("Salvato! Ricarica la pagina.")
-    conn.close()
-
-elif pagina == "🚜 Database Macchine":
-    st.title("Database Macchine C.T.I. Srl")
-    conn = sqlite3.connect("database_lifting_cti_v4.db")
-    st.dataframe(pd.read_sql_query("SELECT * FROM macchine", conn), use_container_width=True)
-    conn.close()
