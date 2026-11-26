@@ -2,7 +2,7 @@ from docxtpl import DocxTemplate, InlineImage
 from docx.shared import Mm
 import io
 
-def crea_documento_word(dati, img_diag_std, img_diag, img_elem, img_rig):
+def crea_documento_word(dati, img_diag_std, img_diag, img_diag_2, img_elem, img_rig):
     doc = DocxTemplate("template_piano_tiro_CTI.docx")
     contesto = {
         "protocollo": dati["protocollo"],
@@ -41,8 +41,8 @@ def crea_documento_word(dati, img_diag_std, img_diag, img_elem, img_rig):
         "num_segnalatori": dati["num_segnalatori"],
         "num_operatori": dati["num_operatori"],
         "img_diagramma_std": InlineImage(doc, img_diag_std, width=Mm(140)) if img_diag_std else "",
-        "img_diagramma_carico": InlineImage(doc, img_diag, width=Mm(140)) if img_diag else "[Diagramma]",
-        "img_diagramma_2": "",
+        "img_diagramma_carico": InlineImage(doc, img_diag, width=Mm(140)) if img_diag else "[Diagramma Macchina 1]",
+        "img_diagramma_2": InlineImage(doc, img_diag_2, width=Mm(140)) if img_diag_2 else "",
         "img_elemento": InlineImage(doc, img_elem, width=Mm(130)) if img_elem else "[Foto Elemento]",
         "img_rigging": InlineImage(doc, img_rig, width=Mm(130)) if img_rig else "[Rigging 3D]"
     }
