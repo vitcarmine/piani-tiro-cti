@@ -3,44 +3,76 @@ from docxtpl import DocxTemplate, InlineImage
 from docx.shared import Mm
 import io
 
-def render_pulsante_e_word(dati, img_diag_std, img_diag, img_diag_2, img_elem, img_rig):
-    if st.button("🚀 GENERA PIANO DI TIRO (.DOCX)", type="primary"):
+def render_pulsante_e_word(dati, lista_macchine_raw, lista_attr_raw, img_rig, img_planimetria):
+    if st.button("🚀 GENERA MANUALE / PIANO DI TIRO (.DOCX)", type="primary"):
         try:
-            doc = DocxTemplate("template_piano_tiro_CTI.docx")
+            doc = DocxTemplate("template_manuale_CTI.docx")
+
+            lista_macchine_word = []
+            for m in lista_macchine_raw:
+                lista_macchine_word.append({
+                    "modello": m["modello"],
+                    "matricola_inail": m["matricola_inail"],
+                    "targa": m["targa"],
+                    "portata_max": m["portata_max"],
+                    "anno": m["anno"],
+                    "verifica_periodica": m["verifica_periodica"],
+                    "note": m["note"],
+                    "sbraccio": m["sbraccio"],
+                    "braccio": m["braccio"],
+                    "portata_eff": m["portata_eff"],
+                    "coeff_utilizzo": m["coeff_utilizzo"],
+                    "diagramma_std": InlineImage(doc, m["diag_std"], width=Mm(145)) if m["diag_std"] else "",
+                    "diagramma_cerchiato": InlineImage(doc, m["diag_cerc"], width=Mm(145)) if m["diag_cerc"] else ""
+                })
+
+            lista_attrezzature_word = []
+            for item in lista_attr_raw:
+                lista_attrezzature_word.append({
+                    "company": item["company"],
+                    "nome": item["nome"],
+                    "peso_kg": item["peso_kg"],
+                    "descrizione": item["descrizione"],
+                    "accessori_corredo": item["accessori_corredo"],
+                    "accessori_dettaglio": item["accessori_dettaglio"],
+                    "foto": InlineImage(doc, item["foto_file"], width=Mm(115)) if item["foto_file"] else ""
+                })
+
             contesto = {
-                "protocollo": dati["protocollo"], "revisione": dati["revisione"],
-                "data_emissione": dati["data_emissione"], "sito": dati["sito"],
-                "oggetto_attivita": dati["oggetto_attivita"], "preparato_da": dati["preparato_da"],
-                "approvato_da": dati["approvato_da"], "data_sopralluogo": dati["data_sopralluogo"],
-                "quota_partenza": dati["quota_partenza"], "quota_arrivo": dati["quota_arrivo"],
-                "codice_lta": dati["codice_lta"], "criticita_sopralluogo": dati["criticita"],
-                "macchina_modello": dati["macchina_modello"], "matricola_inail": dati["matricola_inail"],
-                "targa": dati["targa"], "portata_max": dati["portata_max"],
-                "anno_costruzione": dati["anno_costruzione"], "verifica_periodica": dati["verifica_periodica"],
-                "note_macchina": dati["note_macchina"], "sbraccio_m": dati["sbraccio_m"],
-                "lunghezza_braccio_m": dati["lunghezza_braccio_m"], "portata_configurazione": dati["portata_configurazione"],
-                "carico_max_p": dati["carico_max_p"], "coeff_utilizzo": dati["coeff_utilizzo"],
-                "testo_compatibilita": dati["testo_compatibilita"], "testo_stabilizzatori": dati["testo_stabilizzatori"],
-                "nome_elemento": dati["nome_elemento"], "descrizione_elemento": dati["descrizione_elemento"],
-                "peso_elemento_kg": dati["peso_elemento_kg"], "descrizione_imbraco": dati["descrizione_imbraco"],
-                "elenco_accessori": dati["elenco_accessori"], "num_pic": dati["num_pic"],
-                "num_imbracatori": dati["num_imbracatori"], "num_segnalatori": dati["num_segnalatori"],
+                "protocollo": dati["protocollo"],
+                "titolo_documento": dati["titolo_documento"],
+                "revisione": dati["revisione"],
+                "data_emissione": dati["data_emissione"],
+                "sito": dati["sito"],
+                "oggetto_attivita": dati["oggetto_attivita"],
+                "preparato_da": dati["preparato_da"],
+                "approvato_da": dati["approvato_da"],
+                "data_sopralluogo": dati["data_sopralluogo"],
+                "quota_partenza": dati["quota_partenza"],
+                "quota_arrivo": dati["quota_arrivo"],
+                "codice_lta": dati["codice_lta"],
+                "criticita_sopralluogo": dati["criticita"],
+                "lista_macchine": lista_macchine_word,
+                "lista_attrezzature": lista_attrezzature_word,
+                "carico_max_p": dati["carico_max_p"],
+                "testo_compatibilita": dati["testo_compatibilita"],
+                "testo_stabilizzatori": dati["testo_stabilizzatori"],
+                "num_pic": dati["num_pic"],
+                "num_imbracatori": dati["num_imbracatori"],
+                "num_segnalatori": dati["num_segnalatori"],
                 "num_operatori": dati["num_operatori"],
-                "img_diagramma_std": InlineImage(doc, img_diag_std, width=Mm(140)) if img_diag_std else "",
-                "img_diagramma_carico": InlineImage(doc, img_diag, width=Mm(140)) if img_diag else "[Diagramma Macchina 1]",
-                "img_diagramma_2": InlineImage(doc, img_diag_2, width=Mm(140)) if img_diag_2 else "",
-                "img_elemento": InlineImage(doc, img_elem, width=Mm(130)) if img_elem else "[Foto Elemento]",
-                "img_rigging": InlineImage(doc, img_rig, width=Mm(130)) if img_rig else "[Rigging 3D]"
+                "img_rigging": InlineImage(doc, img_rig, width=Mm(140)) if img_rig else "",
+                "img_planimetria": InlineImage(doc, img_planimetria, width=Mm(155)) if img_planimetria else ""
             }
             doc.render(contesto)
             buffer = io.BytesIO()
             doc.save(buffer)
             buffer.seek(0)
-            st.success("✅ Piano di Tiro generato con successo!")
+            st.success("✅ Documento Word generato con schede singole per macchine e attrezzature!")
             st.download_button(
                 label="📥 Scarica Documento Word Compilato",
                 data=buffer,
-                file_name=f"Piano_di_Tiro_Prot_{dati['protocollo'].replace('/', '_')}.docx",
+                file_name=f"Manuale_Sollevamento_Prot_{dati['protocollo'].replace('/', '_')}.docx",
                 mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
             )
         except Exception as e:
