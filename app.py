@@ -3,7 +3,7 @@ import sqlite3
 import pandas as pd
 from datetime import date
 from dati_cti import MACCHINE_INIZIALI, ATTREZZATURE_INIZIALI
-from generatore_word import crea_documento_word
+from generatore_word import render_pulsante_e_word
 
 st.set_page_config(page_title="Piani di Tiro - C.T.I. Srl", page_icon="🏗️", layout="wide")
 
@@ -48,31 +48,27 @@ if pagina == "📝 Genera Piano di Tiro":
         codice_lta = c10.text_input("Codice LTA", value="")
         criticita = st.text_area("Criticità sopralluogo", value="Presenza di parti di impianto in pressione durante i tiri.\nLimitata visibilità del gruista sulle aree di lavoro.")
 
-    with st.expander("2. Elementi da Sollevare (Selezione Multipla per Company)", expanded=True):
+    with st.expander("2. Elementi da Sollevare (Più Company e Più Attrezzature)", expanded=True):
         cc1, cc2 = st.columns(2)
-        opzioni_comp = ["Tutte le Company"] + sorted(df_attrezzature["company"].unique().tolist())
-        company_scelta = cc1.selectbox("Filtra per Company", opzioni_comp)
-        df_f = df_attrezzature if company_scelta == "Tutte le Company" else df_attrezzature[df_attrezzature["company"] == company_scelta]
-
-        df_f = df_f.copy()
-        df_f["etichetta"] = df_f["company"] + " - " + df_f["nome"]
+        tutte_comp = sorted(df_attrezzature["company"].unique().tolist())
+        company_scelte = cc1.multiselect("Seleziona una o più Company", tutte_comp, default=tutte_comp)
+        df_f = df_attrezzature[df_attrezzature["company"].isin(company_scelte)].copy() if len(company_scelte) > 0 else df_attrezzature.copy()
+        df_f["etichetta"] = "[" + df_f["company"] + "] " + df_f["nome"]
         attr_scelte = cc2.multiselect("Seleziona una o più Attrezzature", df_f["etichetta"].tolist())
 
-        modalita_peso = st.radio("Calcolo peso in caso di più attrezzature:", ["Peso massimo singolo tiro (più gravoso)", "Somma pesi (sollevamento assieme)"], horizontal=True)
-
+        modalita_peso = st.radio("Calcolo peso con più attrezzature:", ["Peso massimo singolo tiro (più gravoso)", "Somma pesi (sollevamento assieme)"], horizontal=True)
         if len(attr_scelte) > 0:
             righe_sel = df_f[df_f["etichetta"].isin(attr_scelte)]
-            def_nome = " + ".join(righe_sel["nome"].tolist())
+            def_nome = " + ".join(righe_sel["etichetta"].tolist())
             def_peso = float(righe_sel["peso_kg"].max()) if "singolo" in modalita_peso else float(righe_sel["peso_kg"].sum())
-            def_desc = "\n\n".join(righe_sel.apply(lambda r: f"• {r['nome']} ({int(r['peso_kg'])} kg): {r['descrizione']}", axis=1).tolist())
+            def_desc = "\n\n".join(righe_sel.apply(lambda r: f"• [{r['company']}] {r['nome']} ({int(r['peso_kg'])} kg): {r['descrizione']}", axis=1).tolist())
             def_corr = "Sì" if "Sì" in righe_sel["accessori_corredo"].tolist() else "No"
-            def_acc = "\n".join(righe_sel.apply(lambda r: f"[{r['nome']}]\n{r['accessori_dettaglio']}", axis=1).tolist())
+            def_acc = "\n".join(righe_sel.apply(lambda r: f"[{r['company']} - {r['nome']}]\n{r['accessori_dettaglio']}", axis=1).tolist())
         else:
             def_nome, def_peso, def_desc, def_corr, def_acc = "", 150.0, "", "Sì", ""
 
         nome_elemento = st.text_input("Titolo / Tag Elementi", value=def_nome)
         descrizione_elemento = st.text_area("Descrizione tecnica elementi", value=def_desc, height=110)
-
         cp1, cp2, cp3, cp4 = st.columns(4)
         peso_el_kg = cp1.number_input("Peso elemento di progetto (kg)", min_value=1.0, value=def_peso, step=10.0)
         peso_bozzello_kg = cp2.number_input("Peso bozzello (kg)", min_value=0.0, value=400.0, step=10.0)
@@ -82,25 +78,22 @@ if pagina == "📝 Genera Piano di Tiro":
         st.metric("Carico Totale di Progetto p*", f"{carico_max_p:.2f} t")
 
     with st.expander("3. Macchine di Sollevamento (Selezione Multipla) e Stabilizzatori", expanded=True):
-        macchine_scelte = st.multiselect("Seleziona una o più Macchine (Principale + Riserva / Tandem)", df_macchine["modello"].tolist(), default=df_macchine["modello"].head(1).tolist())
-
-        riepilogo_macchine_testo = []
-        targhe_list, inail_list, portate_list, anni_list, verif_list, note_list = [], [], [], [], [], []
+        macchine_scelte = st.multiselect("Seleziona una o più Macchine", df_macchine["modello"].tolist(), default=df_macchine["modello"].head(1).tolist())
+        riepilogo_macchine_testo, targhe_list, inail_list, portate_list, anni_list, verif_list, note_list = [], [], [], [], [], [], []
         sbraccio_1, braccio_1, portata_1, coeff_1 = 22.0, 38.1, 4.70, 0.0
 
         for idx, mod_nome in enumerate(macchine_scelte):
             dm = df_macchine[df_macchine["modello"] == mod_nome].squeeze()
-            st.markdown(f"**Macchina {idx + 1}: {mod_nome}** (Targa/Serie: `{dm['targa']}` | INAIL: `{dm['matricola_inail']}` | Max: `{dm['portata_max']}`)")
+            st.markdown(f"**Macchina {idx + 1}: {mod_nome}** (Targa/Serie: `{dm['targa']}` | INAIL: `{dm['matricola_inail']}`)")
             cm1, cm2, cm3 = st.columns(3)
             sb = cm1.number_input(f"Sbraccio M{idx + 1} (m)", min_value=0.5, value=22.0, step=0.5, key=f"sb_{idx}")
-            br = cm2.number_input(f"Lunghezza braccio M{idx + 1} (m)", min_value=1.0, value=38.1, step=0.5, key=f"br_{idx}")
-            pt = cm3.number_input(f"Portata effettiva M{idx + 1} (t)", min_value=0.1, value=4.70, step=0.1, key=f"pt_{idx}")
+            br = cm2.number_input(f"Braccio M{idx + 1} (m)", min_value=1.0, value=38.1, step=0.5, key=f"br_{idx}")
+            pt = cm3.number_input(f"Portata M{idx + 1} (t)", min_value=0.1, value=4.70, step=0.1, key=f"pt_{idx}")
             cu = round((carico_max_p / pt) * 100.0, 2)
             if cu < 80:
                 st.success(f"✅ Utilizzo M{idx + 1}: **{cu:.2f}%**")
             else:
                 st.error(f"⚠️ Utilizzo M{idx + 1}: **{cu:.2f}%** (>80%)")
-
             if idx == 0:
                 sbraccio_1, braccio_1, portata_1, coeff_1 = sb, br, pt, cu
             targhe_list.append(str(dm["targa"]))
@@ -139,3 +132,6 @@ if pagina == "📝 Genera Piano di Tiro":
         img_diag = st.file_uploader("Diagramma cerchiato Macchina 1 (PNG/JPG)", type=["png", "jpg", "jpeg"])
         img_diag_2 = st.file_uploader("Diagramma Macchina 2 (opzionale - PNG/JPG)", type=["png", "jpg", "jpeg"])
         img_elem = st.file_uploader("Foto elemento (PNG/JPG)", type=["png", "jpg", "jpeg"])
+        img_rig = st.file_uploader("Schema Rigging 3D (PNG/JPG)", type=["png", "jpg", "jpeg"])
+
+    dati_word = {
