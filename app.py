@@ -15,10 +15,10 @@ def init_db():
     c.execute("CREATE TABLE IF NOT EXISTS macchine (id INTEGER PRIMARY KEY AUTOINCREMENT, modello TEXT, targa TEXT, matricola_inail TEXT, portata_max TEXT, anno TEXT, categoria TEXT, verifica_periodica TEXT, note_specifiche TEXT)")
     c.execute("CREATE TABLE IF NOT EXISTS attrezzature (id INTEGER PRIMARY KEY AUTOINCREMENT, company TEXT, nome TEXT, peso_kg REAL, descrizione TEXT, accessori_corredo TEXT, accessori_dettaglio TEXT)")
     c.execute("SELECT COUNT(*) FROM macchine")
-    if c.fetchone() == 0:
+    if c.fetchone()[0] == 0:
         c.executemany("INSERT INTO macchine (modello, targa, matricola_inail, portata_max, anno, categoria, verifica_periodica, note_specifiche) VALUES (?, ?, ?, ?, ?, ?, ?, ?)", MACCHINE_INIZIALI)
     c.execute("SELECT COUNT(*) FROM attrezzature")
-    if c.fetchone() == 0:
+    if c.fetchone()[0] == 0:
         c.executemany("INSERT INTO attrezzature (company, nome, peso_kg, descrizione, accessori_corredo, accessori_dettaglio) VALUES (?, ?, ?, ?, ?, ?)", ATTREZZATURE_INIZIALI)
     conn.commit()
     conn.close()
@@ -56,13 +56,13 @@ if pagina == "📝 Genera Piano di Tiro":
         criticita = st.text_area("Criticità rilevate in sopralluogo", value="Presenza di parti di impianto in pressione durante i tiri.\nLimitata visibilità del gruista sulle aree di lavoro (tiro cieco o parzialmente cieco).")
 
     with st.expander("2. Elemento da Sollevare (Archivio Company) e Calcolo Carico p*", expanded=True):
-        col_c1, col_c2 = st.columns()
+        col_c1, col_c2 = st.columns(2)
         company_scelta = col_c1.selectbox("Seleziona Company", sorted(df_attrezzature["company"].unique().tolist()))
         df_attr_filtrate = df_attrezzature[df_attrezzature["company"] == company_scelta]
         attr_scelta = col_c2.selectbox(f"Seleziona Attrezzatura ({company_scelta})", ["➕ Inserimento manuale..."] + df_attr_filtrate["nome"].tolist())
 
         if attr_scelta != "➕ Inserimento manuale...":
-            dati_attr = df_attr_filtrate[df_attr_filtrate["nome"] == attr_scelta].iloc
+            dati_attr = df_attr_filtrate[df_attr_filtrate["nome"] == attr_scelta].iloc[0]
             def_nome, def_peso, def_desc, def_corredo, def_acc = dati_attr["nome"], float(dati_attr["peso_kg"]), dati_attr["descrizione"], dati_attr["accessori_corredo"], dati_attr["accessori_dettaglio"]
             st.info(f"**Company:** {company_scelta} | **Accessori a corredo:** {def_corredo}")
         else:
@@ -82,7 +82,7 @@ if pagina == "📝 Genera Piano di Tiro":
 
     with st.expander("3. Macchina Principale e Verifica Stabilizzatori", expanded=True):
         macchina_scelta = st.selectbox("Seleziona Macchina Principale", df_macchine["modello"].tolist())
-        dati_m = df_macchine[df_macchine["modello"] == macchina_scelta].iloc
+        dati_m = df_macchine[df_macchine["modello"] == macchina_scelta].iloc[0]
         st.info(f"**Targa/Serie:** {dati_m['targa']} | **INAIL:** {dati_m['matricola_inail']} | **Portata Max:** {dati_m['portata_max']} | **Anno:** {dati_m['anno']}")
 
         col_m1, col_m2, col_m3 = st.columns(3)
@@ -133,3 +133,5 @@ if pagina == "📝 Genera Piano di Tiro":
             contesto = {
                 "protocollo": protocollo, "revisione": revisione, "data_emissione": data_emissione, "sito": sito,
                 "oggetto_attivita": oggetto_attivita, "preparato_da": preparato_da, "approvato_da": approvato_da,
+                "data_sopralluogo": data_sopralluogo, "quota_partenza": quota_partenza, "quota_arrivo": quota_arrivo,
+                "codice_lta": codice_lta, "criticita_sopralluogo": criticita, "macchina_modello": dati_m["modello"],
