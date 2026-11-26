@@ -120,9 +120,9 @@ if pagina == "📝 Genera Piano di Tiro":
         scarico_stab_sicurezza_t = scarico_stab_base_t * 2.0
         pressione_max_kgcm2 = round((scarico_stab_sicurezza_t * 1000.0) / ((lato_piastra_m * 100.0) ** 2), 2)
         if pressione_max_kgcm2 <= portanza_terreno_kgcm2:
-    st.success(f"✅ Pressione (+100%): **{pressione_max_kgcm2:.2f} kg/cm²** ≤ {portanza_terreno_kgcm2:.2f} kg/cm²")
-else:
-    st.error(f"⚠️ Pressione ({pressione_max_kgcm2:.2f} kg/cm²) > Portanza terreno!")
+            st.success(f"✅ Pressione (+100%): **{pressione_max_kgcm2:.2f} kg/cm²** ≤ {portanza_terreno_kgcm2:.2f} kg/cm²")
+        else:
+            st.error(f"⚠️ Pressione ({pressione_max_kgcm2:.2f} kg/cm²) > Portanza terreno!")
 
     with st.expander("4. Accessori Associati e Lifting Team", expanded=True):
         accessori_corredo = st.selectbox("Accessori a corredo?", ["Sì", "No"], index=0 if def_corr == "Sì" else 1)
@@ -139,5 +139,3 @@ else:
         img_diag = st.file_uploader("Diagramma cerchiato Macchina 1 (PNG/JPG)", type=["png", "jpg", "jpeg"])
         img_diag_2 = st.file_uploader("Diagramma Macchina 2 (opzionale - PNG/JPG)", type=["png", "jpg", "jpeg"])
         img_elem = st.file_uploader("Foto elemento (PNG/JPG)", type=["png", "jpg", "jpeg"])
-        img_rig = st.file_uploader("Schema Rigging 3D (PNG/JPG)", type=["png", "jpg", "jpeg"])
-
