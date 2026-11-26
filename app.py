@@ -102,7 +102,7 @@ if pagina == "📝 Genera Piano di Tiro":
         img_elem = st.file_uploader("Foto elemento (PNG/JPG)", type=["png", "jpg", "jpeg"])
         img_rig = st.file_uploader("Schema Rigging 3D (PNG/JPG)", type=["png", "jpg", "jpeg"])
 
-    if st.button("🚀 GENERA PIANO DI TIRO (.DOCX)", type="primary"):
+      if st.button("🚀 GENERA PIANO DI TIRO (.DOCX)", type="primary"):
         try:
             dati_word = {
                 "protocollo": protocollo, "revisione": revisione, "data_emissione": data_emissione, "sito": sito,
@@ -121,3 +121,35 @@ if pagina == "📝 Genera Piano di Tiro":
                 "descrizione_imbraco": descrizione_imbraco, "elenco_accessori": elenco_accessori,
                 "num_pic": num_pic, "num_imbracatori": num_imbracatori, "num_segnalatori": num_segnalatori, "num_operatori": num_operatori
             }
+            buffer = crea_documento_word(dati_word, img_diag_std, img_diag, img_elem, img_rig)
+            st.success("✅ Piano di Tiro generato!")
+            st.download_button("📥 Scarica Word Compilato", data=buffer, file_name=f"Piano_di_Tiro_Prot_{protocollo.replace('/', '_')}.docx")
+        except Exception as e:
+            st.error(f"Errore: {e}")
+
+elif pagina == "📦 Database Attrezzature (Company)":
+    st.title("Database Attrezzature per Company")
+    conn = sqlite3.connect("database_lifting_cti_v4.db")
+    df_a = pd.read_sql_query("SELECT * FROM attrezzature", conn)
+    filtro = st.selectbox("Filtra per Company:", ["Tutte"] + sorted(df_a["company"].unique().tolist()))
+    st.dataframe(df_a if filtro == "Tutte" else df_a[df_a["company"] == filtro], use_container_width=True)
+    with st.form("nuova_attr"):
+        c1, c2, c3 = st.columns(3)
+        comp_n = c1.text_input("Company (es. ENI, SMAPE, DAJAN)")
+        nome_n = c2.text_input("Nome Attrezzatura")
+        peso_n = c3.number_input("Peso (kg)", min_value=1.0, value=500.0)
+        desc_n = st.text_area("Descrizione tecnica")
+        corr_n = st.selectbox("Accessori a corredo?", ["Sì", "No"])
+        acc_n = st.text_area("Accessori associati")
+        if st.form_submit_button("Salva Attrezzatura"):
+            if comp_n and nome_n:
+                conn.execute("INSERT INTO attrezzature (company, nome, peso_kg, descrizione, accessori_corredo, accessori_dettaglio) VALUES (?, ?, ?, ?, ?, ?)", (comp_n.upper().strip(), nome_n, peso_n, desc_n, corr_n, acc_n))
+                conn.commit()
+                st.success("Salvato! Ricarica la pagina.")
+    conn.close()
+
+elif pagina == "🚜 Database Macchine":
+    st.title("Database Macchine C.T.I. Srl")
+    conn = sqlite3.connect("database_lifting_cti_v4.db")
+    st.dataframe(pd.read_sql_query("SELECT * FROM macchine", conn), use_container_width=True)
+    conn.close()
