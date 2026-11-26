@@ -54,7 +54,7 @@ if pagina == "📝 Genera Piano di Tiro":
         df_f = df_attrezzature[df_attrezzature["company"] == company_scelta]
         attr_scelta = cc2.selectbox(f"Seleziona Attrezzatura ({company_scelta})", ["➕ Inserimento manuale..."] + df_f["nome"].tolist())
         if attr_scelta != "➕ Inserimento manuale...":
-            ra = df_f[df_f["nome"] == attr_scelta].iloc
+            ra = df_f[df_f["nome"] == attr_scelta].squeeze()
             def_nome, def_peso, def_desc, def_corr, def_acc = ra["nome"], float(ra["peso_kg"]), ra["descrizione"], ra["accessori_corredo"], ra["accessori_dettaglio"]
         else:
             def_nome, def_peso, def_desc, def_corr, def_acc = "", 150.0, "", "Sì", ""
@@ -70,7 +70,7 @@ if pagina == "📝 Genera Piano di Tiro":
 
     with st.expander("3. Macchina Principale e Verifica Stabilizzatori", expanded=True):
         macchina_scelta = st.selectbox("Seleziona Macchina", df_macchine["modello"].tolist())
-        dm = df_macchine[df_macchine["modello"] == macchina_scelta].iloc
+        dm = df_macchine[df_macchine["modello"] == macchina_scelta].squeeze()
         st.info(f"**Targa/Serie:** {dm['targa']} | **INAIL:** {dm['matricola_inail']} | **Portata Max:** {dm['portata_max']} | **Anno:** {dm['anno']}")
         cm1, cm2, cm3 = st.columns(3)
         sbraccio_m = cm1.number_input("Raggio / Sbraccio (m)", min_value=0.5, value=22.0, step=0.5)
