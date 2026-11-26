@@ -134,7 +134,7 @@ if pagina == "📝 Genera Piano di Tiro":
         img_elem = st.file_uploader("Foto elemento (PNG/JPG)", type=["png", "jpg", "jpeg"])
         img_rig = st.file_uploader("Schema Rigging 3D (PNG/JPG)", type=["png", "jpg", "jpeg"])
 
-      dati_word = {
+    dati_word = {
         "protocollo": protocollo, "revisione": revisione, "data_emissione": data_emissione, "sito": sito,
         "oggetto_attivita": oggetto_attivita, "preparato_da": preparato_da, "approvato_da": approvato_da,
         "data_sopralluogo": data_sopralluogo, "quota_partenza": quota_partenza, "quota_arrivo": quota_arrivo,
