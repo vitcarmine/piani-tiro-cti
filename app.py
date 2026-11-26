@@ -102,7 +102,7 @@ if pagina == "📝 Genera Piano di Tiro":
         img_elem = st.file_uploader("Foto elemento (PNG/JPG)", type=["png", "jpg", "jpeg"])
         img_rig = st.file_uploader("Schema Rigging 3D (PNG/JPG)", type=["png", "jpg", "jpeg"])
 
-      if st.button("🚀 GENERA PIANO DI TIRO (.DOCX)", type="primary"):
+    if st.button("🚀 GENERA PIANO DI TIRO (.DOCX)", type="primary"):
         try:
             dati_word = {
                 "protocollo": protocollo, "revisione": revisione, "data_emissione": data_emissione, "sito": sito,
