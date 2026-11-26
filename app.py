@@ -134,4 +134,50 @@ if pagina == "📝 Genera Piano di Tiro":
         img_elem = st.file_uploader("Foto elemento (PNG/JPG)", type=["png", "jpg", "jpeg"])
         img_rig = st.file_uploader("Schema Rigging 3D (PNG/JPG)", type=["png", "jpg", "jpeg"])
 
-    dati_word = {
+      dati_word = {
+        "protocollo": protocollo, "revisione": revisione, "data_emissione": data_emissione, "sito": sito,
+        "oggetto_attivita": oggetto_attivita, "preparato_da": preparato_da, "approvato_da": approvato_da,
+        "data_sopralluogo": data_sopralluogo, "quota_partenza": quota_partenza, "quota_arrivo": quota_arrivo,
+        "codice_lta": codice_lta, "criticita": criticita,
+        "macchina_modello": " + ".join(macchine_scelte), "matricola_inail": " / ".join(inail_list),
+        "targa": " / ".join(targhe_list), "portata_max": " / ".join(portate_list),
+        "anno_costruzione": " / ".join(anni_list), "verifica_periodica": " / ".join(verif_list),
+        "note_macchina": "\n".join(note_list), "sbraccio_m": f"{sbraccio_1:.1f}",
+        "lunghezza_braccio_m": f"{braccio_1:.1f}", "portata_configurazione": f"{portata_1:.2f}",
+        "carico_max_p": f"{carico_max_p:.2f}", "coeff_utilizzo": f"{coeff_1:.2f}",
+        "testo_compatibilita": "\n".join(riepilogo_macchine_testo),
+        "testo_stabilizzatori": f"Scarico stabilizzatore (+100% sicurezza): {scarico_stab_sicurezza_t:.2f} t | Piastre {lato_piastra_m:.2f}x{lato_piastra_m:.2f} m | Pressione max: {pressione_max_kgcm2:.2f} kg/cm² ≤ {portanza_terreno_kgcm2:.2f} kg/cm² (VERIFICATO).",
+        "nome_elemento": f"ATTREZZATURE ({' + '.join(company_scelte)}) - {nome_elemento}",
+        "descrizione_elemento": descrizione_elemento, "peso_elemento_kg": f"{int(peso_el_kg)}",
+        "descrizione_imbraco": descrizione_imbraco, "elenco_accessori": elenco_accessori,
+        "num_pic": num_pic, "num_imbracatori": num_imbracatori, "num_segnalatori": num_segnalatori, "num_operatori": num_operatori
+    }
+    render_pulsante_e_word(dati_word, img_diag_std, img_diag, img_diag_2, img_elem, img_rig)
+
+elif pagina == "📦 Database Attrezzature (Company)":
+    st.title("Database Attrezzature per Company")
+    conn = sqlite3.connect("database_lifting_cti_v4.db")
+    df_a = pd.read_sql_query("SELECT * FROM attrezzature", conn)
+    filtro = st.multiselect("Filtra per Company:", sorted(df_a["company"].unique().tolist()), default=sorted(df_a["company"].unique().tolist()))
+    st.dataframe(df_a[df_a["company"].isin(filtro)], use_container_width=True)
+    with st.form("nuova_attr"):
+        c1, c2, c3 = st.columns(3)
+        comp_n = c1.text_input("Company (es. ENI, SMAPE, DAJAN o nuova Company)")
+        nome_n = c2.text_input("Nome Attrezzatura")
+        peso_n = c3.number_input("Peso (kg)", min_value=1.0, value=500.0)
+        desc_n = st.text_area("Descrizione tecnica")
+        corr_n = st.selectbox("Accessori a corredo?", ["Sì", "No"])
+        acc_n = st.text_area("Accessori associati")
+        if st.form_submit_button("Salva Attrezzatura"):
+            if comp_n and nome_n:
+                conn.execute("INSERT INTO attrezzature (company, nome, peso_kg, descrizione, accessori_corredo, accessori_dettaglio) VALUES (?, ?, ?, ?, ?, ?)", (comp_n.upper().strip(), nome_n, peso_n, desc_n, corr_n, acc_n))
+                conn.commit()
+                st.success("Salvato! Ricarica la pagina.")
+    conn.close()
+
+elif pagina == "🚜 Database Macchine":
+    st.title("Database Macchine C.T.I. Srl")
+    conn = sqlite3.connect("database_lifting_cti_v4.db")
+    st.dataframe(pd.read_sql_query("SELECT * FROM macchine", conn), use_container_width=True)
+    conn.close()
+
